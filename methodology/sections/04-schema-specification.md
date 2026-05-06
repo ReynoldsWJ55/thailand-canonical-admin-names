@@ -24,7 +24,7 @@ File: `thailand-adm1-provinces-v1.0.0.csv` / `.parquet`. Coverage: 77 rows × 36
 | `capital` | string | Provincial capital, English. |
 | `capital_th` | string | Provincial capital, Thai (municipality prefix stripped). |
 | `established_year` | integer | Year the province was established as a modern administrative unit. Populated only where primary-source verified (4 rows at v1.0; the verification threshold is specified in Section 18). |
-| `predecessor_tis1099_code` | integer | For provinces carved out of others (e.g., Bueng Kan TIS-38 with predecessor 43, the Nong Khai code). Empty otherwise. |
+| `predecessor_tis1099_code` | integer | TIS-1099 code of the parent province for provinces carved out of others (e.g., Bueng Kan TIS-38 with predecessor 43, the Nong Khai code). Populated when (a) the row's `established_year` is CONFIRMED grade in `established_years.csv` and (b) the underlying primary-source citation names the parent province explicitly. Empty otherwise — including when `established_year` is PARTIAL or absent. The structured per-split record (effective date, source citation, notes) lives in `data/historical_mappings.csv`. |
 | `centroid_lat` | float | Polygon-geometric centroid latitude (decimal degrees, EPSG:4326). |
 | `centroid_lon` | float | Polygon-geometric centroid longitude. |
 | `area_km2` | float | Area in square kilometers (UTM 47N or 48N projected, see Section 9). |
