@@ -6,8 +6,9 @@ __pycache__/
 .Python
 *.egg-info/
 .eggs/
-build/
+/build/
 dist/
+# Track methodology/build/ — those are release deliverables (PDF, docx, source).
 
 # Virtual environments
 venv/
