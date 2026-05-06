@@ -110,7 +110,7 @@ def main():
         df[c] = pd.to_numeric(df[c], errors="coerce").astype("Int64")
     for c in FLOAT_COLS:
         df[c] = pd.to_numeric(df[c], errors="coerce").astype("Float64")
-    df.to_parquet(OUTPUT_PARQUET, engine="fastparquet", compression="snappy", index=False)
+    df.to_parquet(OUTPUT_PARQUET, engine="pyarrow", compression="snappy", index=False)
     print(f"Wrote Parquet: {OUTPUT_PARQUET}")
 
 

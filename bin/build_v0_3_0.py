@@ -41,6 +41,15 @@ OVERRIDES = ROOT / "data" / "overrides.csv"
 OUTPUT_CSV = ROOT / "data" / "v0.3.0" / "thailand-adm-names-v0.3.0.csv"
 OUTPUT_REPORT = ROOT / "data" / "v0.3.0" / "build_report.md"
 
+# v1.0.x release outputs. The same row set ships under the v1.0.0 filename for
+# downstream consumers; the v0.3.0 path is preserved as a historical artifact
+# for any tool still pinned to that filename. The orchestrator (build_v1_0_0.py)
+# calls this script for its "adm1" stage; before this dual-write was added the
+# v1.0.0 ADM1 file was hand-promoted at release time and the smoke test's
+# byte-identical contract was hollow for ADM1.
+RELEASE_CSV = ROOT / "data" / "v1.0.0" / "thailand-adm1-provinces-v1.0.0.csv"
+RELEASE_PARQUET = ROOT / "data" / "v1.0.0" / "thailand-adm1-provinces-v1.0.0.parquet"
+
 SCHEMA = [
     # Core identifiers
     "tis1099_code", "iso3166_2", "iso_subdivision_type",
@@ -391,6 +400,43 @@ def write_csv(rows):
         writer.writerows(rows)
 
 
+def write_release_outputs(rows):
+    """Write the v1.0.0 ADM1 CSV and parquet at the released filenames.
+
+    CSV is byte-identical to OUTPUT_CSV (same writer, same row order, same
+    fields); we duplicate the write so consumers that pin to the v1.0.0
+    filename get the same content without a separate promotion step.
+
+    Parquet uses engine="pyarrow" and compression="snappy". v1.0.2 switched
+    the parquet engine from fastparquet to pyarrow project-wide; see CHANGELOG.
+    Numeric columns whose CSV cells may be empty are kept as the pandas Int64
+    nullable-integer type so downstream readers see ints (not floats with
+    NaN) for established_year and predecessor_tis1099_code.
+    """
+    RELEASE_CSV.parent.mkdir(parents=True, exist_ok=True)
+    with open(RELEASE_CSV, "w", newline="", encoding="utf-8") as f:
+        writer = csv.DictWriter(f, fieldnames=SCHEMA)
+        writer.writeheader()
+        writer.writerows(rows)
+
+    # Parquet sibling. Imported lazily so consumers running --tables in a
+    # minimal environment without pandas/pyarrow still get the CSV.
+    try:
+        import pandas as pd
+    except ImportError:
+        print("  (parquet skipped — pandas not available)")
+        return
+    df = pd.read_csv(RELEASE_CSV)
+    for col in ("established_year", "predecessor_tis1099_code"):
+        if col in df.columns:
+            df[col] = df[col].astype("Int64")
+    try:
+        df.to_parquet(RELEASE_PARQUET, engine="pyarrow",
+                      compression="snappy", index=False)
+    except ImportError:
+        print("  (parquet skipped — pyarrow not available)")
+
+
 def write_report(rows, wd_inception, overrides):
     fields = SCHEMA
     fill = {f: sum(1 for r in rows if r[f] not in ("", None)) for f in fields}
@@ -464,8 +510,12 @@ def write_report(rows, wd_inception, overrides):
 def main():
     rows, wd_inception, overrides = build()
     write_csv(rows)
+    write_release_outputs(rows)
     write_report(rows, wd_inception, overrides)
     print(f"Wrote {len(rows)} rows to {OUTPUT_CSV}")
+    print(f"Wrote {len(rows)} rows to {RELEASE_CSV}")
+    if RELEASE_PARQUET.exists():
+        print(f"Wrote parquet to {RELEASE_PARQUET}")
     print(f"Wrote build report to {OUTPUT_REPORT}")
     print()
     print("Column fill rates:")
